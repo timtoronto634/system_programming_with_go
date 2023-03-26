@@ -1,4 +1,4 @@
-package main
+package ch2
 
 import (
 	"compress/gzip"
@@ -39,7 +39,7 @@ func q2_1() {
 	fmt.Fprintf(printTest, "digit: %d, float %f, string: %s\n", 1, 1., "1")
 }
 
-func main() {
+func Main() {
 	q2_1()
 	q2_3()
 }
