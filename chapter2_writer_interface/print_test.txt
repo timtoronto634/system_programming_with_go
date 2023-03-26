@@ -1,0 +1,1 @@
+digit: 1, float 1.000000, string: 1

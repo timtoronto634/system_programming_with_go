@@ -1,0 +1,73 @@
+
+# json
+func main() {
+	jsonFile, err := os.Create("jsonFile.txt")
+	if err != nil {
+		panic(err)
+	}
+
+	multiwriter := io.MultiWriter(jsonFile, os.Stdout)
+	encoder := json.NewEncoder(multiwriter)
+	encoder.SetIndent("", "\t")
+	encoder.Encode(map[string]string{
+		"type": "json encode",
+		"text": "example",
+	})
+}
+
+# http request write method
+func main() {
+	req, err := http.NewRequest("GET", "http://example.com", nil)
+
+	if err != nil {
+		panic(err)
+	}
+
+	req.Header.Set("X-TEST", "can add header")
+
+	req.Write(os.Stdout)
+
+}
+
+# print TEST
+func main() {
+	printTest, err := os.Create("print_test.txt")
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Fprintf(printTest, "digit: %d, float %f, string: %s\n", 1, 1., "1")
+}
+
+# http handleFunc
+
+func handler(w http.ResponseWriter, r *http.Request) {
+	io.WriteString(w, "http response writer")
+}
+
+func main() {
+	http.HandleFunc("/", handler)
+	http.ListenAndServe(":8080", nil)
+}
+
+# http server that encodes content and also write to stdout
+func handler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Encoding", "gzip")
+	w.Header().Set("Content-Type", "application/json")
+	source := map[string]string{
+		"text": "hello world",
+	}
+
+	multiWriter := io.MultiWriter(os.Stdout, w)
+
+	gwriter := gzip.NewWriter(multiWriter)
+	encoder := json.NewEncoder(gwriter)
+	encoder.Encode(source)
+	gwriter.Flush()
+	gwriter.Close()
+}
+
+func main() {
+	http.HandleFunc("/", handler)
+	http.ListenAndServe(":8080", nil)
+}
