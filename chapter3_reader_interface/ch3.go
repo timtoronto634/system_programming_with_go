@@ -1,13 +1,17 @@
 package ch3
 
 import (
+	"bytes"
+	"crypto/rand"
 	"io"
 	"os"
 )
 
+const curDir = "chapter3_reader_interface/"
+
 func Q3_1() {
-	oldFile := "chapter3_reader_interface/old.txt"
-	newFile := "chapter3_reader_interface/new.txt"
+	oldFile := curDir + "old.txt"
+	newFile := curDir + "new.txt"
 	of, err := os.Open(oldFile)
 	if err != nil {
 		panic(err)
@@ -19,4 +23,17 @@ func Q3_1() {
 	}
 	io.Copy(nf, of)
 	nf.Close()
+}
+
+func Q3_2() {
+	randReader := rand.Reader
+	rf, err := os.Create(curDir + "rand.bin")
+	if err != nil {
+		panic(err)
+	}
+	defer rf.Close()
+	buf := make([]byte, 1024)
+	io.ReadFull(randReader, buf)
+	bReader := bytes.NewReader(buf)
+	io.Copy(rf, bReader)
 }

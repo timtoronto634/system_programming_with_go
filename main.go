@@ -5,5 +5,5 @@ import (
 )
 
 func main() {
-	ch3.Q3_1()
+	ch3.Q3_2()
 }
