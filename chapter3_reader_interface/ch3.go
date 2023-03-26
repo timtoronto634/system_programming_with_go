@@ -1,7 +1,6 @@
 package ch3
 
 import (
-	"bytes"
 	"crypto/rand"
 	"io"
 	"os"
@@ -32,8 +31,5 @@ func Q3_2() {
 		panic(err)
 	}
 	defer rf.Close()
-	buf := make([]byte, 1024)
-	io.ReadFull(randReader, buf)
-	bReader := bytes.NewReader(buf)
-	io.Copy(rf, bReader)
+	io.CopyN(rf, randReader, 1024)
 }
