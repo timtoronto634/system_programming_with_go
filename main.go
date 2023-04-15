@@ -1,9 +1,8 @@
 package main
 
-import (
-	ch3 "github.com/timtoronto634/system_programming_with_go/chapter3_reader_interface"
-)
+// use: github.com/timtoronto634/system_programming_with_go/
+import ch5 "github.com/timtoronto634/system_programming_with_go/chapter5_system_call"
 
 func main() {
-	ch3.Q3_2()
+	ch5.CreateFile("chapter5_system_call/chapter5")
 }
