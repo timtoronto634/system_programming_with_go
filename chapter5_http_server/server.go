@@ -10,16 +10,19 @@ func Serve() error {
 	if err != nil {
 		panic(err)
 	}
-	conn, err := ln.Accept()
-	if err != nil {
-		panic(err)
-	}
-	var b []byte
-	_, err = conn.Read(b)
-	if err != nil {
-		panic(err)
-	}
+	for {
+		conn, err := ln.Accept()
+		if err != nil {
+			panic(err)
+		}
+		go func() {
+			var b []byte
+			_, err = conn.Read(b)
+			if err != nil {
+				panic(err)
+			}
 
-	fmt.Println(b)
-	return nil
+			fmt.Println(b)
+		}()
+	}
 }
