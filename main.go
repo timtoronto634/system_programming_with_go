@@ -11,6 +11,6 @@ func main() {
 	if args[0] == "server" {
 		ch5.Serve()
 	} else {
-		ch5.Dial()
+		ch5.ClientDo()
 	}
 }
