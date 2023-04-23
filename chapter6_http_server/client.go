@@ -2,71 +2,81 @@ package chapter5httpserver
 
 import (
 	"bufio"
+	"compress/gzip"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"net/http/httputil"
-	"strconv"
+	"os"
+	"strings"
 )
 
+// dial localhost:8080
 func ClientDo() {
-	conn, err := net.Dial("tcp", "localhost:8887")
-	if err != nil {
-		panic(err)
+	sendMessages := []string{
+		"ASCII",
+		"PROGRAMMING",
+		"PLUS",
 	}
-	defer conn.Close()
-	request, err := http.NewRequest(
-		"GET",
-		"http://localhost:8887",
-		nil,
-	)
-	if err != nil {
-		panic(err)
-	}
-	err = request.Write(conn)
-	if err != nil {
-		panic(err)
-	}
+	current := 0
+	var conn net.Conn = nil
 
-	reader := bufio.NewReader(conn)
-	response, err := http.ReadResponse(
-		reader, request)
-	if err != nil {
-		panic(err)
-	}
-	defer response.Body.Close()
-
-	dump, err := httputil.DumpResponse(response, false)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(string(dump))
-	if len(response.TransferEncoding) < 1 ||
-		response.TransferEncoding[0] != "chunked" {
-		panic("wrong transfer encoding")
-	}
 	for {
-		sizeStr, err := reader.ReadBytes('\n')
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			panic(err)
+		var err error
+		if conn == nil {
+			conn, err = net.Dial("tcp", "localhost:8887")
+			if err != nil {
+				panic(err)
+			}
+			fmt.Printf("Access: %d\n", current)
 		}
-		// parse size, expressed in hex, close if the size is zero
-		size, err := strconv.ParseInt(string(sizeStr[:len(sizeStr)-2]), 16, 64)
+		request, err := http.NewRequest(
+			"POST",
+			"http://localhost:8887",
+			strings.NewReader(sendMessages[current]),
+		)
 		if err != nil {
 			panic(err)
 		}
-		if size == 0 {
-			break
-		}
+		request.Header.Add("Accept-Encoding", "gzip") // NOTE: Set will replace the existing value
+
+		err = request.Write(conn)
 		if err != nil {
 			panic(err)
 		}
-		line := make([]byte, int(size))
-		io.ReadFull(reader, line)
-		reader.Discard(2)
-		fmt.Printf("  %d bytes: %s\n", size, string(line))
+
+		response, err := http.ReadResponse(
+			bufio.NewReader(conn), request)
+		if err != nil {
+			fmt.Println("Retry")
+			conn = nil
+			continue
+		}
+		defer response.Body.Close()
+
+		// only for showing to standard output
+		dump, err := httputil.DumpResponse(response, false)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println(string(dump))
+
+		if response.Header.Get("Content-Encoding") == "gzip" {
+			gzipReader, err := gzip.NewReader(response.Body)
+			if err != nil {
+				panic(err)
+			}
+			io.Copy(os.Stdout, gzipReader)
+			gzipReader.Close()
+		} else {
+			io.Copy(os.Stdout, response.Body)
+		}
+
+		current++
+
+		if current == len(sendMessages) {
+			break
+		}
 	}
 }

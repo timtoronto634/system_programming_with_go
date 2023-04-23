@@ -2,30 +2,35 @@ package chapter5httpserver
 
 import (
 	"bufio"
+	"bytes"
+	"compress/gzip"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"strings"
+	"time"
 )
 
-var contents = []string{
-	"これは、わたしが小さいときに、村の茂兵（もへい）というおじいさんからきいたお話です。",
-	"むかしは、わたしたちの村のちかくの、中山というところに小さなお城（しろ）があって、",
-	"中山さまというおとのさまがおられたそうです。",
-	"その中山から、すこしはなれた山の中に、「ごんぎつね」というきつねがいました。",
-	"ごんは、ひとりぼっちの小ぎつねで、しだのいっぱいしげった森の中に穴（あな）をほって住んでいました。そして、夜でも昼でも、あたりの村へ出ていって、いたずらばかりしました。",
+func isGzipAcceptable(header http.Header) bool {
+	return strings.Contains(strings.Join(header["Accept-Encoding"], " "), "gzip")
 }
 
 func processSession(conn net.Conn) {
 	defer conn.Close()
 	fmt.Printf("Accept %v\n", conn.RemoteAddr())
 	for {
+		conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 		request, err := http.ReadRequest(
 			bufio.NewReader(conn))
 		if err != nil {
-			if err == io.EOF {
+			// if  timeout, close connection,
+			neterr, ok := err.(net.Error)
+			if ok && neterr.Timeout() {
+				fmt.Println("Timeout")
+				break
+			} else if err == io.EOF {
 				break
 			}
 			panic(err)
@@ -37,17 +42,27 @@ func processSession(conn net.Conn) {
 		}
 		fmt.Println(string(dump))
 
-		fmt.Fprint(conn, strings.Join([]string{
-			"HTTP/1.1 200 OK",
-			"Content-Type: text/plain",
-			"Transfer-Encoding: chunked",
-			"", "",
-		}, "\r\n"))
-		for _, content := range contents {
-			bytes := []byte(content)
-			fmt.Fprintf(conn, "%x\r\n%s\r\n", len(bytes), content)
+		response := http.Response{
+			StatusCode: 200,
+			ProtoMajor: 1,
+			ProtoMinor: 1,
+			Header:     make(http.Header),
 		}
-		fmt.Fprintf(conn, "0\r\n\r\n")
+		if isGzipAcceptable(request.Header) {
+			content := "Hello World (gzipped)\n"
+			var buffer bytes.Buffer
+			writer := gzip.NewWriter(&buffer)
+			io.WriteString(writer, content)
+			writer.Close()
+			response.Body = io.NopCloser(&buffer)
+			response.ContentLength = int64(buffer.Len())
+			response.Header.Set("Content-Encoding", "gzip")
+		} else {
+			content := "Hello world\n"
+			response.Body = io.NopCloser(strings.NewReader(content))
+			response.ContentLength = int64(len(content))
+		}
+		response.Write(conn)
 	}
 }
 
