@@ -2,8 +2,6 @@ package chapter5httpserver
 
 import (
 	"bufio"
-	"bytes"
-	"compress/gzip"
 	"fmt"
 	"io"
 	"net"
@@ -13,17 +11,47 @@ import (
 	"time"
 )
 
-func isGzipAcceptable(header http.Header) bool {
-	return strings.Contains(strings.Join(header["Accept-Encoding"], " "), "gzip")
+func writeToConn(sessionResponses chan chan *http.Response, conn net.Conn) {
+	defer conn.Close()
+
+	for sessionResponse := range sessionResponses {
+		response := <-sessionResponse
+		response.Write(conn)
+		close(sessionResponse)
+	}
+}
+
+func handleRequest(request *http.Request, resultReceiver chan *http.Response) {
+	dump, err := httputil.DumpRequest(request, true)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(string(dump))
+	content := "Hello World\n"
+
+	response := &http.Response{
+		StatusCode:    200,
+		ProtoMajor:    1,
+		ProtoMinor:    1,
+		ContentLength: int64(len(content)),
+		Body:          io.NopCloser(strings.NewReader(content)),
+	}
+
+	resultReceiver <- response
 }
 
 func processSession(conn net.Conn) {
 	defer conn.Close()
 	fmt.Printf("Accept %v\n", conn.RemoteAddr())
+	// channel to handle request inside session
+	sessionResponses := make(chan chan *http.Response, 50)
+	defer close(sessionResponses)
+	// goroutine for serialize response
+	go writeToConn(sessionResponses, conn)
+	reader := bufio.NewReader(conn)
 	for {
 		conn.SetReadDeadline(time.Now().Add(5 * time.Second))
-		request, err := http.ReadRequest(
-			bufio.NewReader(conn))
+		request, err := http.ReadRequest(reader)
 		if err != nil {
 			// if  timeout, close connection,
 			neterr, ok := err.(net.Error)
@@ -35,34 +63,12 @@ func processSession(conn net.Conn) {
 			}
 			panic(err)
 		}
+		sessionResponse := make(chan *http.Response)
+		// sessionResponse は同期的にsessionResponsesに入れる
+		sessionResponses <- sessionResponse
 
-		dump, err := httputil.DumpRequest(request, true)
-		if err != nil {
-			panic(err)
-		}
-		fmt.Println(string(dump))
-
-		response := http.Response{
-			StatusCode: 200,
-			ProtoMajor: 1,
-			ProtoMinor: 1,
-			Header:     make(http.Header),
-		}
-		if isGzipAcceptable(request.Header) {
-			content := "Hello World (gzipped)\n"
-			var buffer bytes.Buffer
-			writer := gzip.NewWriter(&buffer)
-			io.WriteString(writer, content)
-			writer.Close()
-			response.Body = io.NopCloser(&buffer)
-			response.ContentLength = int64(buffer.Len())
-			response.Header.Set("Content-Encoding", "gzip")
-		} else {
-			content := "Hello world\n"
-			response.Body = io.NopCloser(strings.NewReader(content))
-			response.ContentLength = int64(len(content))
-		}
-		response.Write(conn)
+		// ただ単にhandleRequest の結果をchannel にいれるだけだと、他のリクエストが先に処理を終えて、channelに入ってしまう
+		go handleRequest(request, sessionResponse)
 	}
 }
 
