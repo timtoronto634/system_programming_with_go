@@ -3,28 +3,26 @@ package chapter7udp
 import (
 	"fmt"
 	"net"
+	"time"
 )
 
+const interval = 10 * time.Second
+
 func Serve() error {
-	port := ":8887"
-	// open socket
-	conn, err := net.ListenPacket("udp", "localhost:8887")
+	fmt.Println("Start tick server at 224.0.0.1:9999")
+	conn, err := net.Dial("udp", "224.0.0.1:9999")
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("server is running at port%s\n", port)
 	defer conn.Close()
 
-	buffer := make([]byte, 1500)
-	for {
-		length, remoteAddress, err := conn.ReadFrom(buffer)
-		if err != nil {
-			panic(err)
-		}
-		fmt.Printf("Received from %s: %v\n", remoteAddress, string(buffer[:length]))
-		_, err = conn.WriteTo([]byte("Hello from Server"), remoteAddress)
-		if err != nil {
-			panic(err)
-		}
+	start := time.Now()
+	wait := start.Truncate(interval).Add(interval).Sub(start)
+	time.Sleep(wait)
+	ticker := time.Tick(interval)
+	for now := range ticker {
+		conn.Write([]byte(now.String()))
+		fmt.Println("Tick: ", now.String())
 	}
+	return nil
 }

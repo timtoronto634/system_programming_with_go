@@ -6,23 +6,20 @@ import (
 )
 
 func ClientDo() {
-	conn, err := net.Dial("udp", "localhost:8887")
+	fmt.Println("Listen tick server at 224.0.0.1:9999")
+	address, err := net.ResolveUDPAddr("udp", "224.0.0.1:9999")
 	if err != nil {
 		panic(err)
 	}
-	defer conn.Close()
+	listener, err := net.ListenMulticastUDP("udp", nil, address)
+	defer listener.Close()
 
-	fmt.Println("Sending to server")
-	_, err = conn.Write([]byte("Hello from Client"))
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println("receiving from server")
 	buffer := make([]byte, 1500)
-	length, err := conn.Read(buffer)
-	if err != nil {
-		panic(err)
+	for {
+		length, remoteAddress, err := listener.ReadFromUDP(buffer)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Printf("Received from %s: %v\n", remoteAddress, string(buffer[:length]))
 	}
-	fmt.Printf("Received: %s\n", string(buffer[:length]))
 }
