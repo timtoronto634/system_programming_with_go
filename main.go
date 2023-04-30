@@ -1,8 +1,16 @@
 package main
 
-// use: github.com/timtoronto634/system_programming_with_go/
-import ch5 "github.com/timtoronto634/system_programming_with_go/chapter5_system_call"
+import (
+	"os"
+
+	ch6 "github.com/timtoronto634/system_programming_with_go/chapter6_http_server"
+)
 
 func main() {
-	ch5.CreateFile("chapter5_system_call/chapter5")
+	args := os.Args[1:]
+	if args[0] == "server" {
+		ch6.Serve()
+	} else {
+		ch6.ClientDo()
+	}
 }
