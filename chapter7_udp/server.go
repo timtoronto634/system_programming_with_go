@@ -1,4 +1,4 @@
-package chapter5httpserver
+package chapter7udp
 
 import (
 	"fmt"
