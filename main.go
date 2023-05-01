@@ -3,14 +3,14 @@ package main
 import (
 	"os"
 
-	ch7 "github.com/timtoronto634/system_programming_with_go/chapter7_udp"
+	ch8 "github.com/timtoronto634/system_programming_with_go/chapter8_unix_domain_socket"
 )
 
 func main() {
 	args := os.Args[1:]
 	if args[0] == "server" {
-		ch7.Serve()
+		ch8.Serve()
 	} else {
-		ch7.ClientDo()
+		ch8.ClientDo()
 	}
 }
