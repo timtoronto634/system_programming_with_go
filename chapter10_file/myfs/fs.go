@@ -35,3 +35,29 @@ func (cf *CloudFileSystem) Getattr(path string, stat *fuse.Stat_t, fh uint64) (e
 	stat.Nlink = 1
 	return 0
 }
+
+func (cf *CloudFileSystem) Readdir(path string, fill func(name string, stat *fuse.Stat_t, ofst int64) bool, ofst int64, fh uint64) (errc int) {
+	ctx := context.Background()
+	fill(".", nil, 0)
+	fill("..", nil, 0)
+	prefix := strings.TrimLeft(path, "/")
+	if prefix != "" {
+		prefix = prefix + "/"
+	}
+	i := cf.bucket.List(&blob.ListOptions{
+		Prefix:    prefix,
+		Delimiter: "/",
+	})
+	for {
+		o, err := i.Next(ctx)
+		if err != nil {
+			break
+		}
+		key := o.Key[len(prefix):]
+		if len(key) == 0 {
+			continue
+		}
+		fill(strings.TrimRight(key, "/"), nil, 0)
+	}
+	return 0
+}
